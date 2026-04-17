@@ -6,21 +6,15 @@ import { auth } from './firebase'
 import Auth from './Auth'
 import { MODES } from './modes'
 
-const OPENAI_KEY = import.meta.env.VITE_OPENAI_API_KEY
-
-// ── Stream OpenAI ─────────────────────────────────────────────────────────────
+// ── Stream via Netlify function ───────────────────────────────────────────────
 async function streamChat({ system, messages, onChunk, onDone, onError }) {
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_KEY}` },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        stream: true,
-        messages: [{ role: 'system', content: system }, ...messages.map(m => ({ role: m.role, content: m.text }))],
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ system, messages }),
     })
-    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || `Error ${res.status}`) }
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error || `Error ${res.status}`) }
     const reader = res.body.getReader()
     const dec = new TextDecoder()
     let buf = ''
