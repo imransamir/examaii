@@ -6,15 +6,27 @@ import { auth } from './firebase'
 import Auth from './Auth'
 import { MODES } from './modes'
 
-// ── Stream via Netlify function ───────────────────────────────────────────────
+const DEV_KEY = import.meta.env.VITE_OPENAI_API_KEY
+const IS_DEV  = import.meta.env.DEV
+
+// ── Stream OpenAI (via Netlify function in prod, direct in dev) ───────────────
 async function streamChat({ system, messages, onChunk, onDone, onError }) {
   try {
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ system, messages }),
-    })
-    if (!res.ok) { const e = await res.json(); throw new Error(e.error || `Error ${res.status}`) }
+    const res = IS_DEV
+      ? await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${DEV_KEY}` },
+          body: JSON.stringify({
+            model: 'gpt-4o', stream: true,
+            messages: [{ role: 'system', content: system }, ...messages.map(m => ({ role: m.role, content: m.text }))],
+          }),
+        })
+      : await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ system, messages }),
+        })
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || e.error || `Error ${res.status}`) }
     const reader = res.body.getReader()
     const dec = new TextDecoder()
     let buf = ''

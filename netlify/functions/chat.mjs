@@ -3,13 +3,21 @@ export default async (request) => {
     return new Response('Method not allowed', { status: 405 })
   }
 
+  const apiKey = process.env.VITE_OPENAI_API_KEY || process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: 'API key not configured' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
   const { system, messages } = await request.json()
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.VITE_OPENAI_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model: 'gpt-4o',
@@ -37,5 +45,3 @@ export default async (request) => {
     },
   })
 }
-
-export const config = { path: '/api/chat' }
